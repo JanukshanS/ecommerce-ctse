@@ -1,0 +1,271 @@
+# =============================================================
+# ECOMMERCE MICROSERVICES - DOCKER COMPOSE (Local Development)
+# =============================================================
+# Prerequisites:
+#   1. Docker Desktop installed and running
+#   2. Copy .env.example to .env and set JWT_SECRET
+#   3. BuildKit enabled (default in Docker Desktop ≥ 20.x)
+#
+# Usage:
+#   Start all services:    docker compose up --build
+#   Stop all services:     docker compose down
+#   Stop + delete data:    docker compose down -v
+#   View logs:             docker compose logs -f <service-name>
+#   Restart one service:   docker compose restart auth-service
+#
+# Access points after startup:
+#   API Gateway (main):    http://localhost:8080
+#   Auth Service (direct): http://localhost:8081
+#   Catalog Service:       http://localhost:8082
+#   Cart Service:          http://localhost:8083
+#   Order Service:         http://localhost:8084
+#   Payment Service:       http://localhost:8085
+#   MongoDB (Compass):     mongodb://localhost:27017
+# =============================================================
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # MongoDB — single instance, all 5 databases created automatically
+  # ─────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7.0
+    container_name: ecommerce-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017" # exposed so you can connect via MongoDB Compass
+    volumes:
+      - mongo-data:/data/db # persist data between restarts
+    environment:
+      MONGO_INITDB_DATABASE: admin
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ─────────────────────────────────────────────────────────────
+  # Auth Service (port 8081)
+  # ─────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: . # project root (Dockerfile COPYs from here)
+      dockerfile: auth-service/Dockerfile
+    container_name: ecommerce-auth
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/authdb
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8081/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # Catalog Service (port 8082)
+  # ─────────────────────────────────────────────────────────────
+  catalog-service:
+    build:
+      context: .
+      dockerfile: catalog-service/Dockerfile
+    container_name: ecommerce-catalog
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/catalogdb
+      JWT_SECRET: ${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8082/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # Cart Service (port 8083)
+  # ─────────────────────────────────────────────────────────────
+  cart-service:
+    build:
+      context: .
+      dockerfile: cart-service/Dockerfile
+    container_name: ecommerce-cart
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/cartdb
+      JWT_SECRET: ${JWT_SECRET}
+      CATALOG_SERVICE_URL: http://catalog-service:8082
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8083/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # Order Service (port 8084)
+  # ─────────────────────────────────────────────────────────────
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: ecommerce-order
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/orderdb
+      JWT_SECRET: ${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8084/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # Payment Service (port 8085)
+  # ─────────────────────────────────────────────────────────────
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: ecommerce-payment
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/paymentdb
+      JWT_SECRET: ${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8085/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # API Gateway (port 8080) — main entry point
+  # Waits for ALL services to be healthy before starting
+  # ─────────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: ecommerce-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # THE only port you need for Postman testing
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CATALOG_SERVICE_URL: http://catalog-service:8082
+      CART_SERVICE_URL: http://cart-service:8083
+      ORDER_SERVICE_URL: http://order-service:8084
+      PAYMENT_SERVICE_URL: http://payment-service:8085
+    env_file:
+      - .env
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8080/actuator/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+# ─────────────────────────────────────────────────────────────
+# Named volumes (data persists on your machine)
+# ─────────────────────────────────────────────────────────────
+volumes:
+  mongo-data:
+    driver: local
+
+# ─────────────────────────────────────────────────────────────
+# Internal network — services talk to each other by name
+# e.g., auth-service is reachable as http://auth-service:8081
+# ─────────────────────────────────────────────────────────────
+networks:
+  ecommerce-network:
+    driver: bridge

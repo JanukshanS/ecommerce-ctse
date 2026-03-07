@@ -1,0 +1,82 @@
+# ===== JAVA / MAVEN =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper
+.mvn/
+mvnw
+mvnw.cmd
+
+# ===== SPRING BOOT =====
+*.log
+spring.log
+logs/
+
+# ===== ENVIRONMENT / SECRETS =====
+# Never commit these — they contain passwords and API keys
+.env
+.env.*
+!.env.example
+
+# ===== DOCKER =====
+# Docker volumes created locally
+docker-volumes/
+docker-data/
+
+# ===== IDE =====
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.eclipse/
+.classpath
+.project
+.settings/
+bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ===== OS =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ===== SONAR / TEST COVERAGE =====
+.sonar/
+sonar-project.properties
+
+# ===== NODE (if any frontend is added later) =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

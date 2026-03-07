@@ -1,0 +1,32 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: cart-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/cartdb}
+
+catalog:
+  service:
+    url: ${CATALOG_SERVICE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.ecommerce.cart: DEBUG
