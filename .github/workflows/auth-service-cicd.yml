@@ -16,7 +16,7 @@ on:
 
 env:
   # Change this to your Docker Hub username and repository name
-  DOCKER_IMAGE: your-dockerhub-username/ecommerce-auth-service
+  DOCKER_IMAGE: janukshan/ecommerce-auth-service
 
 jobs:
   build-and-test:

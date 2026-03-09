@@ -16,7 +16,7 @@ on:
 
 env:
   # Change this to your Docker Hub username and repository name
-  DOCKER_IMAGE: your-dockerhub-username/ecommerce-catalog-service
+  DOCKER_IMAGE: janukshan/ecommerce-catalog-service
 
 jobs:
   build-and-test:
