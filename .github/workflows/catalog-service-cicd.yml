@@ -53,7 +53,7 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     # Only push Docker image on push to main/master, not on PRs
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     
     steps:
       - name: Checkout Repository
