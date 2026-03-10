@@ -1,0 +1,49 @@
+name: Trigger auto deployment for catalog-service
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/catalog-service-AutoDeployTrigger-0c91ed0c-3c6e-4693-a4fa-6cb7029734c8.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CATALOGSERVICE_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CATALOGSERVICE_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CATALOGSERVICE_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}catalog-service
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.CATALOGSERVICE_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.CATALOGSERVICE_REGISTRY_PASSWORD }}
+          containerAppName: catalog-service
+          resourceGroup: rg-ecommerce-ctse
+          imageToBuild: janukshan /catalog-service:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
