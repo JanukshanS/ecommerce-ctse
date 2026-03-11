@@ -256,4 +256,4 @@ components:
         requestedQuantity:
           type: integer
         available:
-          type: integer
+          type: boolean

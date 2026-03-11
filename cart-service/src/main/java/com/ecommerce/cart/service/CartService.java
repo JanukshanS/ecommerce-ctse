@@ -68,6 +68,7 @@ public class CartService {
         if (existingItem.isPresent()) {
             existingItem.get().setQuantity(totalQuantity);
             existingItem.get().setPrice(catalogPrice);
+            existingItem.get().setProductName(catalogName);
         } else {
             CartItem newItem = CartItem.builder()
                     .productId(request.getProductId())

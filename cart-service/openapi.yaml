@@ -42,7 +42,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CartItemInput'
       responses:
-        '200':
+        '201':
           description: Cart updated
           content:
             application/json:

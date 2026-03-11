@@ -20,7 +20,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ProcessPaymentRequest'
       responses:
-        '200':
+        '201':
           description: Payment processed
           content:
             application/json:
