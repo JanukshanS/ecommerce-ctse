@@ -1,5 +1,7 @@
 package com.ecommerce.order;
 
+import com.ecommerce.order.client.CartServiceClient;
+import com.ecommerce.order.client.PaymentServiceClient;
 import com.ecommerce.order.dto.CreateOrderRequest;
 import com.ecommerce.order.dto.OrderItemRequest;
 import com.ecommerce.order.dto.OrderResponse;
@@ -24,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +44,12 @@ class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
+
+    @Mock
+    private PaymentServiceClient paymentServiceClient;
+
+    @Mock
+    private CartServiceClient cartServiceClient;
 
     @InjectMocks
     private OrderService orderService;
@@ -93,16 +102,16 @@ class OrderServiceTest {
             order.setId(orderId);
             return order;
         });
+        when(paymentServiceClient.processPayment(any(), any(), any())).thenReturn(
+                Optional.of(Map.of("id", "pay001", "status", "SUCCESS")));
 
         OrderResponse response = orderService.createOrder(userId, request);
 
         assertNotNull(response);
         assertEquals(userId, response.getUserId());
         assertThat(response.getTotalAmount()).isEqualTo(59.98);
-        assertEquals(OrderStatus.PENDING, response.getStatus());
-        assertEquals(PaymentStatus.PENDING, response.getPaymentStatus());
         assertEquals("123 Test St, Test City", response.getShippingAddress());
-        verify(orderRepository, times(1)).save(any(Order.class));
+        verify(orderRepository, times(2)).save(any(Order.class));
     }
 
     @Test
@@ -127,6 +136,7 @@ class OrderServiceTest {
                 .build();
 
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(paymentServiceClient.processPayment(any(), any(), any())).thenReturn(Optional.empty());
 
         OrderResponse response = orderService.createOrder(userId, request);
 

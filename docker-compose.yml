@@ -160,10 +160,16 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI}/orderdb
       JWT_SECRET: ${JWT_SECRET}
+      PAYMENT_SERVICE_URL: http://payment-service:8085
+      CART_SERVICE_URL: http://cart-service:8083
     env_file:
       - .env
     depends_on:
       mongo:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      cart-service:
         condition: service_healthy
     networks:
       - ecommerce-network
@@ -192,6 +198,7 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI}/paymentdb
       JWT_SECRET: ${JWT_SECRET}
+      ORDER_SERVICE_URL: http://order-service:8084
     env_file:
       - .env
     depends_on:

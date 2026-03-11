@@ -1,5 +1,6 @@
 package com.ecommerce.cart;
 
+import com.ecommerce.cart.client.CatalogServiceClient;
 import com.ecommerce.cart.dto.AddToCartRequest;
 import com.ecommerce.cart.dto.CartResponse;
 import com.ecommerce.cart.model.Cart;
@@ -17,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +37,9 @@ class CartServiceTest {
 
     @Mock
     private CartRepository cartRepository;
+
+    @Mock
+    private CatalogServiceClient catalogServiceClient;
 
     @InjectMocks
     private CartService cartService;
@@ -72,6 +77,9 @@ class CartServiceTest {
                 .quantity(1)
                 .build();
 
+        when(catalogServiceClient.getProduct("prod002")).thenReturn(
+                Optional.of(Map.of("id", "prod002", "name", "New Product", "price", 19.99, "stock", 10)));
+        when(catalogServiceClient.checkStock("prod002", 1)).thenReturn(true);
         when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(testCart));
         when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -93,6 +101,9 @@ class CartServiceTest {
                 .quantity(1)
                 .build();
 
+        when(catalogServiceClient.getProduct("prod001")).thenReturn(
+                Optional.of(Map.of("id", "prod001", "name", "Test Product", "price", 29.99, "stock", 10)));
+        when(catalogServiceClient.checkStock("prod001", 1)).thenReturn(true);
         when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
         when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> {
             Cart cart = invocation.getArgument(0);
@@ -120,6 +131,9 @@ class CartServiceTest {
                 .quantity(3)
                 .build();
 
+        when(catalogServiceClient.getProduct("prod001")).thenReturn(
+                Optional.of(Map.of("id", "prod001", "name", "Test Product", "price", 29.99, "stock", 50)));
+        when(catalogServiceClient.checkStock("prod001", 5)).thenReturn(true);
         when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(testCart));
         when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

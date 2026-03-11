@@ -1,5 +1,6 @@
 package com.ecommerce.payment.service;
 
+import com.ecommerce.payment.client.OrderServiceClient;
 import com.ecommerce.payment.dto.PaymentRequest;
 import com.ecommerce.payment.dto.PaymentResponse;
 import com.ecommerce.payment.dto.RefundRequest;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final OrderServiceClient orderServiceClient;
 
     public PaymentResponse processPayment(String userId, PaymentRequest request) {
         String transactionId = UUID.randomUUID().toString();
@@ -42,6 +44,13 @@ public class PaymentService {
         Payment savedPayment = paymentRepository.save(payment);
         log.info("Payment processed for orderId: {}, transactionId: {}, status: {}",
                 request.getOrderId(), transactionId, savedPayment.getStatus());
+
+        orderServiceClient.updateOrderPaymentStatus(
+                request.getOrderId(),
+                savedPayment.getId(),
+                isSuccess
+        );
+
         return mapToResponse(savedPayment);
     }
 

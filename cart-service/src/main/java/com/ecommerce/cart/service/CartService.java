@@ -1,5 +1,6 @@
 package com.ecommerce.cart.service;
 
+import com.ecommerce.cart.client.CatalogServiceClient;
 import com.ecommerce.cart.dto.AddToCartRequest;
 import com.ecommerce.cart.dto.CartResponse;
 import com.ecommerce.cart.model.Cart;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -20,6 +22,7 @@ import java.util.Optional;
 public class CartService {
 
     private final CartRepository cartRepository;
+    private final CatalogServiceClient catalogServiceClient;
 
     public CartResponse getCart(String userId) {
         Cart cart = cartRepository.findByUserId(userId)
@@ -28,6 +31,9 @@ public class CartService {
     }
 
     public CartResponse addItem(String userId, AddToCartRequest request) {
+        Map<String, Object> product = catalogServiceClient.getProduct(request.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found: " + request.getProductId()));
+
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseGet(() -> createEmptyCart(userId));
 
@@ -37,17 +43,37 @@ public class CartService {
             cart.setItems(items);
         }
 
+        int existingQuantity = items.stream()
+                .filter(item -> item.getProductId().equals(request.getProductId()))
+                .findFirst()
+                .map(CartItem::getQuantity)
+                .orElse(0);
+
+        int totalQuantity = existingQuantity + request.getQuantity();
+        if (!catalogServiceClient.checkStock(request.getProductId(), totalQuantity)) {
+            throw new RuntimeException("Insufficient stock for product: " + request.getProductId());
+        }
+
+        Double catalogPrice = product.get("price") instanceof Number
+                ? ((Number) product.get("price")).doubleValue()
+                : request.getPrice();
+        String catalogName = product.get("name") != null
+                ? product.get("name").toString()
+                : request.getProductName();
+
         Optional<CartItem> existingItem = items.stream()
                 .filter(item -> item.getProductId().equals(request.getProductId()))
                 .findFirst();
 
         if (existingItem.isPresent()) {
-            existingItem.get().setQuantity(existingItem.get().getQuantity() + request.getQuantity());
+            existingItem.get().setQuantity(totalQuantity);
+            existingItem.get().setPrice(catalogPrice);
+            existingItem.get().setProductName(catalogName);
         } else {
             CartItem newItem = CartItem.builder()
                     .productId(request.getProductId())
-                    .productName(request.getProductName())
-                    .price(request.getPrice())
+                    .productName(catalogName)
+                    .price(catalogPrice)
                     .quantity(request.getQuantity())
                     .build();
             items.add(newItem);
