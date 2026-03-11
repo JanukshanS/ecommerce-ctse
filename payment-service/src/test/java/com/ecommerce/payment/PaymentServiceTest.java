@@ -1,5 +1,6 @@
 package com.ecommerce.payment;
 
+import com.ecommerce.payment.client.OrderServiceClient;
 import com.ecommerce.payment.dto.PaymentRequest;
 import com.ecommerce.payment.dto.PaymentResponse;
 import com.ecommerce.payment.dto.RefundRequest;
@@ -43,6 +44,9 @@ class PaymentServiceTest {
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private OrderServiceClient orderServiceClient;
 
     @InjectMocks
     private PaymentService paymentService;
