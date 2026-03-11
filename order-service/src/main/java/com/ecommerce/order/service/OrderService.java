@@ -1,5 +1,7 @@
 package com.ecommerce.order.service;
 
+import com.ecommerce.order.client.CartServiceClient;
+import com.ecommerce.order.client.PaymentServiceClient;
 import com.ecommerce.order.dto.CreateOrderRequest;
 import com.ecommerce.order.dto.OrderResponse;
 import com.ecommerce.order.dto.UpdateOrderStatusRequest;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -24,6 +28,8 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final PaymentServiceClient paymentServiceClient;
+    private final CartServiceClient cartServiceClient;
 
     public OrderResponse createOrder(String userId, CreateOrderRequest request) {
         List<OrderItem> orderItems = request.getItems().stream()
@@ -55,7 +61,35 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         log.info("Order created with ID: {} for user: {}", savedOrder.getId(), userId);
-        return mapToResponse(savedOrder);
+
+        Optional<Map<String, Object>> paymentResult = paymentServiceClient.processPayment(
+                savedOrder.getId(), totalAmount, userId);
+
+        if (paymentResult.isPresent()) {
+            Map<String, Object> payment = paymentResult.get();
+            String paymentStatus = payment.get("status") != null ? payment.get("status").toString() : "FAILED";
+            String paymentId = payment.get("id") != null ? payment.get("id").toString() : null;
+
+            if ("SUCCESS".equals(paymentStatus)) {
+                savedOrder.setPaymentStatus(PaymentStatus.PAID);
+                savedOrder.setStatus(OrderStatus.CONFIRMED);
+                savedOrder.setPaymentId(paymentId);
+                log.info("Payment successful for order: {}", savedOrder.getId());
+
+                cartServiceClient.clearCart(userId);
+            } else {
+                savedOrder.setPaymentStatus(PaymentStatus.FAILED);
+                savedOrder.setPaymentId(paymentId);
+                log.warn("Payment failed for order: {}", savedOrder.getId());
+            }
+        } else {
+            savedOrder.setPaymentStatus(PaymentStatus.FAILED);
+            log.warn("Payment service unavailable for order: {}", savedOrder.getId());
+        }
+
+        savedOrder.setUpdatedAt(LocalDateTime.now());
+        Order updatedOrder = orderRepository.save(savedOrder);
+        return mapToResponse(updatedOrder);
     }
 
     public Page<OrderResponse> getUserOrders(String userId, Pageable pageable) {

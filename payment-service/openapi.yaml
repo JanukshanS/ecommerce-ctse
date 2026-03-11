@@ -1,0 +1,182 @@
+openapi: 3.0.3
+info:
+  title: payment-service
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8085
+
+paths:
+  /api/payments/process:
+    post:
+      summary: Process a payment
+      operationId: processPayment
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessPaymentRequest'
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /api/payments/order/{orderId}:
+    get:
+      summary: Get payment by order ID
+      operationId: getPaymentByOrderId
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /api/payments/history:
+    get:
+      summary: Get user's payment history
+      operationId: getPaymentHistory
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Paginated payment history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentPage'
+
+  /api/payments/{paymentId}/refund:
+    post:
+      summary: Refund a payment
+      operationId: refundPayment
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Refund processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+components:
+  parameters:
+    XUserId:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    ProcessPaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amount
+        - method
+      properties:
+        orderId:
+          type: string
+        amount:
+          type: number
+          format: double
+        method:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, PAYPAL, BANK_TRANSFER]
+        description:
+          type: string
+
+    RefundRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+          format: double
+        method:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, PAYPAL, BANK_TRANSFER]
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+        transactionId:
+          type: string
+        description:
+          type: string
+        failureReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentResponse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
