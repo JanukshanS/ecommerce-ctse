@@ -269,7 +269,6 @@ class CartServiceTest {
                 .build();
 
         when(catalogServiceClient.getProduct("missing")).thenReturn(Optional.empty());
-        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(testCart));
 
         assertThrows(RuntimeException.class, () -> cartService.addItem(userId, request));
         verify(cartRepository, never()).save(any(Cart.class));
