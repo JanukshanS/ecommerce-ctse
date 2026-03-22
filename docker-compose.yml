@@ -228,7 +228,7 @@ services:
     container_name: ecommerce-gateway
     restart: unless-stopped
     ports:
-      - "8090:8080" # Changed external port to 8090 due to port conflict
+      - "8080:8080" # THE ONLY PORT YOU NEED FOR POSTMAN TESTING
     environment:
       JWT_SECRET: ${JWT_SECRET}
       AUTH_SERVICE_URL: http://auth-service:8081
