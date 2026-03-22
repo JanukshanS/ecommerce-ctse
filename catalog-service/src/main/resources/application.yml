@@ -21,6 +21,7 @@ spring:
 services:
   auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}
   cart-url: ${CART_SERVICE_URL:http://localhost:8083}
+  order-url: ${ORDER_SERVICE_URL:http://localhost:8084}
 
   jackson:
     default-property-inclusion: non_null

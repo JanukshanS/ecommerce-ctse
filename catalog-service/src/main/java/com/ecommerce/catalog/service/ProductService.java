@@ -5,6 +5,7 @@ import com.ecommerce.catalog.dto.ProductResponse;
 import com.ecommerce.catalog.dto.SellerInfo;
 import com.ecommerce.catalog.client.AuthServiceClient;
 import com.ecommerce.catalog.client.CartServiceClient;
+import com.ecommerce.catalog.client.OrderServiceClient;
 import com.ecommerce.catalog.model.Product;
 import com.ecommerce.catalog.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final AuthServiceClient authServiceClient;
     private final CartServiceClient cartServiceClient;
+    private final OrderServiceClient orderServiceClient;
 
     // -----------------------------------------------------------------------
     // Create
@@ -192,10 +194,19 @@ public class ProductService {
         Product product = findByIdOrThrow(id);
         assertOwnership(product, sellerId, "delete");
 
+        // ── Inter-Service Call 3: Catalog → Order ─────────────────────────────
+        // Check if any active orders exist for this product before deleting.
+        // We warn but still allow deletion (soft-delete keeps data integrity).
+        long activeOrders = orderServiceClient.getActiveOrderCount(id);
+        if (activeOrders > 0) {
+            log.warn("Product '{}' has {} active orders — soft-deleting anyway", id, activeOrders);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         product.setActive(false);
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
-        log.info("Product '{}' soft-deleted", id);
+        log.info("Product '{}' soft-deleted (activeOrders={})", id, activeOrders);
 
         // ── Inter-Service Call 2: Catalog → Cart ──────────────────────────────
         // Notify cart-service to remove all cart line items referencing this
@@ -226,10 +237,41 @@ public class ProductService {
             throw new RuntimeException("Product with id '" + id + "' is not available.");
         }
 
+        return product.getStock() >= quantity;
+    }
+
+    /**
+     * Extended stock check that also fetches real-time demand data from cart-service.
+     * Returns available stock status AND how many users have this product in their cart.
+     * Used by the controller's stock-check endpoint to show enriched demand info.
+     */
+    public java.util.Map<String, Object> checkStockWithDemand(String id, int quantity) {
+        log.debug("Extended stock check for product '{}', requested quantity={}", id, quantity);
+
+        Product product = findByIdOrThrow(id);
+
+        if (!product.isActive()) {
+            throw new RuntimeException("Product with id '" + id + "' is not available.");
+        }
+
         boolean sufficient = product.getStock() >= quantity;
-        log.debug("Stock check for product '{}': stock={}, requested={}, sufficient={}",
-                id, product.getStock(), quantity, sufficient);
-        return sufficient;
+
+        // ── Inter-Service Call 2b: Catalog → Cart (demand count) ────────────────
+        // Fetches how many users currently have this product in their cart.
+        // Provides real-time demand signal alongside the stock availability check.
+        long cartDemandCount = cartServiceClient.getDemandCount(id);
+        // ─────────────────────────────────────────────────────────────────────
+
+        log.info("Stock check for product '{}': stock={}, requested={}, sufficient={}, cartDemand={}",
+                id, product.getStock(), quantity, sufficient, cartDemandCount);
+
+        return java.util.Map.of(
+                "productId", id,
+                "requestedQuantity", quantity,
+                "available", sufficient,
+                "currentStock", product.getStock(),
+                "cartDemandCount", cartDemandCount
+        );
     }
 
     // -----------------------------------------------------------------------

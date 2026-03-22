@@ -45,4 +45,30 @@ public class CartServiceClient {
                     productId, e.getMessage());
         }
     }
+
+    /**
+     * Calls cart-service to find how many users currently have this product in their cart.
+     * Used during stock-check to return a real-time demand metric.
+     *
+     * @param productId the product to check demand for
+     * @return number of users who have this product in their cart, 0 if unavailable
+     */
+    public long getDemandCount(String productId) {
+        String url = cartServiceUrl + "/api/cart/product/" + productId + "/count";
+        log.info("[Inter-Service] Catalog → Cart: GET {}", url);
+        try {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> response =
+                    restTemplate.getForObject(url, java.util.Map.class);
+            if (response != null && response.containsKey("cartCount")) {
+                long count = ((Number) response.get("cartCount")).longValue();
+                log.info("[Inter-Service] Product {} is currently in {} user carts", productId, count);
+                return count;
+            }
+        } catch (Exception e) {
+            log.warn("[Inter-Service] Cart service unavailable for demand count of product {}: {}",
+                    productId, e.getMessage());
+        }
+        return 0;
+    }
 }

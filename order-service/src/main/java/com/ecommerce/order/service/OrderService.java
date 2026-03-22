@@ -147,6 +147,23 @@ public class OrderService {
         return mapToResponse(savedOrder);
     }
 
+    /**
+     * Internal: called by catalog-service before deleting a product.
+     * Counts how many active (non-cancelled, non-delivered) orders contain this product.
+     * Allows catalog to warn or prevent deletion of in-demand products.
+     */
+    public long countActiveOrdersForProduct(String productId) {
+        List<OrderStatus> activeStatuses = List.of(
+                OrderStatus.PENDING,
+                OrderStatus.CONFIRMED,
+                OrderStatus.PROCESSING,
+                OrderStatus.SHIPPED
+        );
+        long count = orderRepository.countByItemsProductIdAndStatusIn(productId, activeStatuses);
+        log.info("[Internal] Product {} has {} active orders", productId, count);
+        return count;
+    }
+
     private OrderResponse mapToResponse(Order order) {
         return OrderResponse.builder()
                 .id(order.getId())

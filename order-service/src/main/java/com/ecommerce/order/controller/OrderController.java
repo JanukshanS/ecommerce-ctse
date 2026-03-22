@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/orders")
@@ -68,5 +70,21 @@ public class OrderController {
             @PathVariable String id) {
         log.info("Cancelling order: {} for user: {}", id, userId);
         return ResponseEntity.ok(orderService.cancelOrder(id, userId));
+    }
+
+    /**
+     * Internal endpoint — called by catalog-service before deleting a product.
+     * Returns the count of active (non-cancelled, non-delivered) orders that
+     * contain the given product. Allows catalog to warn or block deletion.
+     */
+    @GetMapping("/product/{productId}/active-count")
+    public ResponseEntity<Map<String, Object>> getActiveOrderCountForProduct(
+            @PathVariable String productId) {
+        long count = orderService.countActiveOrdersForProduct(productId);
+        log.info("[Internal] Product {} has {} active orders", productId, count);
+        return ResponseEntity.ok(Map.of(
+                "productId", productId,
+                "activeOrderCount", count
+        ));
     }
 }
