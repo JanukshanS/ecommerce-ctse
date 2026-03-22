@@ -40,6 +40,12 @@ public class ProductResponse {
     /** Identifier of the seller who owns this listing. */
     private String sellerId;
 
+    /**
+     * Display name of the seller — fetched from auth-service via inter-service call
+     * during product creation. Demonstrates Catalog → Auth communication.
+     */
+    private String sellerName;
+
     /** Whether this product is active and visible to buyers. */
     private boolean active;
 

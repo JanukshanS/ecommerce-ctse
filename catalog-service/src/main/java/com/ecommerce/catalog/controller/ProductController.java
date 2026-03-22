@@ -229,11 +229,7 @@ public class ProductController {
             @RequestParam @Min(value = 1, message = "Quantity must be at least 1") int quantity) {
 
         log.debug("GET /api/catalog/products/{}/stock-check?quantity={}", id, quantity);
-        boolean available = productService.checkStock(id, quantity);
-        return ResponseEntity.ok(Map.of(
-                "productId", id,
-                "requestedQuantity", quantity,
-                "available", available
-        ));
+        // Calls both catalog DB (stock) AND cart-service (demand) — inter-service call
+        return ResponseEntity.ok(productService.checkStockWithDemand(id, quantity));
     }
 }

@@ -66,4 +66,32 @@ public class CartController {
         cartService.clearCart(userId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Internal endpoint — called by catalog-service when a product is deleted.
+     * Removes the product from ALL users' carts across the platform.
+     * No X-User-Id header required (operates across all users).
+     */
+    @DeleteMapping("/items/product/{productId}")
+    public ResponseEntity<Void> removeProductFromAllCarts(@PathVariable String productId) {
+        log.info("[Internal] Removing product {} from all carts", productId);
+        cartService.removeProductFromAllCarts(productId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Internal endpoint — called by catalog-service during stock-check.
+     * Returns the number of users who currently have this product in their cart.
+     * This demand metric helps catalog understand product popularity.
+     */
+    @GetMapping("/product/{productId}/count")
+    public ResponseEntity<java.util.Map<String, Object>> getProductDemandCount(
+            @PathVariable String productId) {
+        long count = cartService.countCartsWithProduct(productId);
+        log.info("[Internal] Product {} is in {} carts", productId, count);
+        return ResponseEntity.ok(java.util.Map.of(
+                "productId", productId,
+                "cartCount", count
+        ));
+    }
 }

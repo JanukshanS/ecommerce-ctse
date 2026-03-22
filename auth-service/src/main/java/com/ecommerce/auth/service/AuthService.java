@@ -90,4 +90,15 @@ public class AuthService {
                 .roles(jwtUtil.extractRoles(token))
                 .build();
     }
+    public UserInfoResponse getUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        return UserInfoResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .roles(user.getRoles())
+                .enabled(user.isEnabled())
+                .build();
+    }
 }

@@ -17,4 +17,10 @@ public interface OrderRepository extends MongoRepository<Order, String> {
     List<Order> findByUserIdAndStatus(String userId, OrderStatus status);
 
     List<Order> findByStatus(OrderStatus status);
+
+    /**
+     * Count orders containing a specific product that are in any of the given statuses.
+     * Called by catalog-service to check if active orders exist before deleting a product.
+     */
+    long countByItemsProductIdAndStatusIn(String productId, List<OrderStatus> statuses);
 }

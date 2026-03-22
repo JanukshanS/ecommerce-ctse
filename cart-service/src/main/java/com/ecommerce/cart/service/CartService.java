@@ -139,6 +139,29 @@ public class CartService {
         log.info("Cart cleared for user: {}", userId);
     }
 
+    /**
+     * Internal: called by catalog-service when a product is deleted.
+     * Removes the given product from every user's cart.
+     */
+    public void removeProductFromAllCarts(String productId) {
+        List<Cart> carts = cartRepository.findByItemsProductId(productId);
+        for (Cart cart : carts) {
+            cart.getItems().removeIf(item -> item.getProductId().equals(productId));
+            calculateTotalAmount(cart);
+            cart.setUpdatedAt(LocalDateTime.now());
+            cartRepository.save(cart);
+        }
+        log.info("Removed product {} from {} carts", productId, carts.size());
+    }
+
+    /**
+     * Internal: called by catalog-service during stock-check.
+     * Returns the number of users who currently have this product in their cart (demand metric).
+     */
+    public long countCartsWithProduct(String productId) {
+        return cartRepository.countByItemsProductId(productId);
+    }
+
     private Cart createEmptyCart(String userId) {
         Cart cart = Cart.builder()
                 .userId(userId)
