@@ -93,6 +93,9 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI}/catalogdb
       JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CART_SERVICE_URL: http://cart-service:8083
+      ORDER_SERVICE_URL: http://order-service:8084
     env_file:
       - .env
     depends_on:

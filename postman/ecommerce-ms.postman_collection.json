@@ -187,11 +187,14 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
-                  "pm.test('Product created with ID', () => {",
+                  "pm.test('Product created with ID and Seller Info', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.id).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.name).to.equal('Wireless Headphones');",
                   "    pm.expect(body.price).to.equal(149.99);",
+                  "    // Inter-Service Verification: check if seller name was fetched from Auth service",
+                  "    pm.expect(body.sellerName).to.be.a('string').and.not.empty;",
+                  "    console.log('Seller Name fetched from Auth:', body.sellerName);",
                   "    pm.environment.set('productId', body.id);",
                   "    console.log('Product ID saved:', body.id);",
                   "});"
@@ -367,10 +370,14 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Stock check result returned', () => {",
+                  "pm.test('Stock Check & Demand Result', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property('available');",
                   "    pm.expect(body.available).to.be.true;",
+                  "    // Inter-Service Verification: check if demand count was fetched from Cart service",
+                  "    pm.expect(body).to.have.property('cartDemandCount');",
+                  "    pm.expect(body.cartDemandCount).to.be.a('number');",
+                  "    console.log('Current Demand from Cart Service:', body.cartDemandCount);",
                   "});"
                 ],
                 "type": "text/javascript"
