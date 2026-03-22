@@ -47,6 +47,10 @@ All external traffic flows through the API Gateway, which validates JWT tokens a
 - Maven 3.9+
 - Docker & Docker Compose
 
+## Deployment (Azure + Vercel)
+
+See **[docs/AZURE_BACKEND_VERCEL_FRONTEND.md](docs/AZURE_BACKEND_VERCEL_FRONTEND.md)** for **Azure + Vercel** deployment, **environment variables**, **full API payloads**, **gateway auth rules**, and **end-to-end flows** for the Next.js frontend.
+
 ## Running Locally
 
 1. Clone the repository:
