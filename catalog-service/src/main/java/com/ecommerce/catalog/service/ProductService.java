@@ -2,6 +2,9 @@ package com.ecommerce.catalog.service;
 
 import com.ecommerce.catalog.dto.ProductRequest;
 import com.ecommerce.catalog.dto.ProductResponse;
+import com.ecommerce.catalog.dto.SellerInfo;
+import com.ecommerce.catalog.client.AuthServiceClient;
+import com.ecommerce.catalog.client.CartServiceClient;
 import com.ecommerce.catalog.model.Product;
 import com.ecommerce.catalog.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,12 @@ import java.time.LocalDateTime;
  * <p>This service enforces ownership rules (a seller may only modify/delete
  * their own products), maps between the domain model and response DTOs, and
  * delegates all persistence to {@link ProductRepository}.</p>
+ *
+ * <p>Inter-service communication:
+ * <ul>
+ *   <li>Catalog → Auth: fetches seller username when creating a product.</li>
+ *   <li>Catalog → Cart: notifies cart-service when a product is deleted.</li>
+ * </ul></p>
  */
 @Service
 @RequiredArgsConstructor
@@ -26,6 +35,8 @@ import java.time.LocalDateTime;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final AuthServiceClient authServiceClient;
+    private final CartServiceClient cartServiceClient;
 
     // -----------------------------------------------------------------------
     // Create
@@ -48,6 +59,14 @@ public class ProductService {
                     "A product with the name '" + request.getName() + "' already exists.");
         }
 
+        // ── Inter-Service Call 1: Catalog → Auth ─────────────────────────────
+        // Fetch the seller's username from auth-service to enrich the product
+        // response with a human-readable seller name.
+        SellerInfo sellerInfo = authServiceClient.getSellerInfo(sellerId);
+        String sellerName = sellerInfo != null ? sellerInfo.getUsername() : "Unknown";
+        log.info("Seller info retrieved: username='{}'", sellerName);
+        // ─────────────────────────────────────────────────────────────────────
+
         Product product = Product.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -60,7 +79,7 @@ public class ProductService {
 
         Product saved = productRepository.save(product);
         log.info("Product created with id '{}'", saved.getId());
-        return toResponse(saved);
+        return toResponse(saved, sellerName);
     }
 
     // -----------------------------------------------------------------------
@@ -177,6 +196,12 @@ public class ProductService {
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
         log.info("Product '{}' soft-deleted", id);
+
+        // ── Inter-Service Call 2: Catalog → Cart ──────────────────────────────
+        // Notify cart-service to remove all cart line items referencing this
+        // product. Gracefully degrades if cart-service is unavailable.
+        cartServiceClient.removeProductFromCarts(id);
+        // ─────────────────────────────────────────────────────────────────────
     }
 
     // -----------------------------------------------------------------------
@@ -241,6 +266,10 @@ public class ProductService {
      * @return the corresponding response DTO
      */
     private ProductResponse toResponse(Product product) {
+        return toResponse(product, null);
+    }
+
+    private ProductResponse toResponse(Product product, String sellerName) {
         return ProductResponse.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -249,6 +278,7 @@ public class ProductService {
                 .category(product.getCategory())
                 .stock(product.getStock())
                 .sellerId(product.getSellerId())
+                .sellerName(sellerName)
                 .active(product.isActive())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())

@@ -13,6 +13,15 @@ spring:
       database: catalogdb
       auto-index-creation: true
 
+# -------------------------------------------------------------------------
+# Inter-Service Communication URLs
+# In Azure Container Apps: services reach each other by container app name.
+# Locally: uses localhost + port.
+# -------------------------------------------------------------------------
+services:
+  auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  cart-url: ${CART_SERVICE_URL:http://localhost:8083}
+
   jackson:
     default-property-inclusion: non_null
     serialization:

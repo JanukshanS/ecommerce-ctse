@@ -50,4 +50,15 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of("status", "UP", "service", "auth-service"));
     }
+
+    /**
+     * Internal endpoint for inter-service communication.
+     * Called by catalog-service to fetch seller information when creating a product.
+     * This endpoint is NOT exposed to the public internet (internal ingress only).
+     */
+    @GetMapping("/internal/users/{userId}")
+    @Operation(summary = "Get user info by ID (internal - called by other microservices)")
+    public ResponseEntity<UserInfoResponse> getUserById(@PathVariable String userId) {
+        return ResponseEntity.ok(authService.getUserById(userId));
+    }
 }
