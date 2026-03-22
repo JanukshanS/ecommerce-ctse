@@ -169,6 +169,8 @@ mvn clean verify -pl cart-service -am
 | Member | Microservice |
 |--------|-------------|
 | Janukshan | Auth Service |
-| — | Catalog Service |
-| — | Cart Service |
-| — | Order Service |
+| Janukshan | Catalog Service |
+| Samudith | Cart Service |
+| Asath | Order Service |
+| Dilnuk | Payment Service |
+
