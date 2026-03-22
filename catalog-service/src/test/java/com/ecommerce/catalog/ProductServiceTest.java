@@ -2,6 +2,10 @@ package com.ecommerce.catalog;
 
 import com.ecommerce.catalog.dto.ProductRequest;
 import com.ecommerce.catalog.dto.ProductResponse;
+import com.ecommerce.catalog.dto.SellerInfo;
+import com.ecommerce.catalog.client.AuthServiceClient;
+import com.ecommerce.catalog.client.CartServiceClient;
+import com.ecommerce.catalog.client.OrderServiceClient;
 import com.ecommerce.catalog.model.Product;
 import com.ecommerce.catalog.repository.ProductRepository;
 import com.ecommerce.catalog.service.ProductService;
@@ -46,6 +50,15 @@ class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private AuthServiceClient authServiceClient;
+
+    @Mock
+    private CartServiceClient cartServiceClient;
+
+    @Mock
+    private OrderServiceClient orderServiceClient;
 
     @InjectMocks
     private ProductService productService;
@@ -96,7 +109,13 @@ class ProductServiceTest {
         @DisplayName("should persist and return a new product when name is unique")
         void createProduct_success() {
             // arrange
+            SellerInfo sellerInfo = SellerInfo.builder()
+                    .userId(SELLER_ID)
+                    .username("janukshan")
+                    .build();
+
             when(productRepository.existsByName("Test Widget")).thenReturn(false);
+            when(authServiceClient.getSellerInfo(SELLER_ID)).thenReturn(sellerInfo);
             when(productRepository.save(any(Product.class))).thenReturn(sampleProduct);
 
             // act
@@ -109,6 +128,7 @@ class ProductServiceTest {
             assertThat(response.getPrice()).isEqualTo(19.99);
             assertThat(response.getCategory()).isEqualTo("Widgets");
             assertThat(response.getSellerId()).isEqualTo(SELLER_ID);
+            assertThat(response.getSellerName()).isEqualTo("janukshan");
             assertThat(response.isActive()).isTrue();
 
             // assert — repository save was called exactly once
@@ -317,6 +337,7 @@ class ProductServiceTest {
         void deleteProduct_success() {
             // arrange
             when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(sampleProduct));
+            when(orderServiceClient.getActiveOrderCount(PRODUCT_ID)).thenReturn(0L);
             when(productRepository.save(any(Product.class))).thenReturn(sampleProduct);
 
             // act
@@ -326,6 +347,10 @@ class ProductServiceTest {
             ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
             verify(productRepository, times(1)).save(captor.capture());
             assertThat(captor.getValue().isActive()).isFalse();
+
+            // verify inter-service notifications
+            verify(cartServiceClient, times(1)).removeProductFromCarts(PRODUCT_ID);
+            verify(orderServiceClient, times(1)).getActiveOrderCount(PRODUCT_ID);
         }
 
         @Test
@@ -439,6 +464,32 @@ class ProductServiceTest {
             assertThatThrownBy(() -> productService.checkStock(PRODUCT_ID, 1))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining(PRODUCT_ID);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // checkStockWithDemand
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("checkStockWithDemand")
+    class CheckStockWithDemand {
+
+        @Test
+        @DisplayName("should return stock status and current demand from cart-service")
+        void checkStockWithDemand_success() {
+            // arrange
+            when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(sampleProduct));
+            when(cartServiceClient.getDemandCount(PRODUCT_ID)).thenReturn(5L);
+
+            // act
+            java.util.Map<String, Object> result = productService.checkStockWithDemand(PRODUCT_ID, 10);
+
+            // assert
+            assertThat(result.get("productId")).isEqualTo(PRODUCT_ID);
+            assertThat(result.get("available")).isEqualTo(true);
+            assertThat(result.get("cartDemandCount")).isEqualTo(5L);
+            verify(cartServiceClient, times(1)).getDemandCount(PRODUCT_ID);
         }
     }
 }
