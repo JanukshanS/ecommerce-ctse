@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -268,9 +269,11 @@ class CartServiceTest {
                 .quantity(1)
                 .build();
 
-        when(catalogServiceClient.getProduct("missing")).thenReturn(Optional.empty());
+        // lenient: avoids strict-stub false positives on some runners; behavior is asserted below
+        lenient().when(catalogServiceClient.getProduct("missing")).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> cartService.addItem(userId, request));
+        verify(catalogServiceClient).getProduct("missing");
         verify(cartRepository, never()).save(any(Cart.class));
     }
 
