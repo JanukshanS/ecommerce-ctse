@@ -228,7 +228,7 @@ services:
     container_name: ecommerce-gateway
     restart: unless-stopped
     ports:
-      - "8080:8080" # THE only port you need for Postman testing
+      - "8080:8080" # THE ONLY PORT YOU NEED FOR POSTMAN TESTING
     environment:
       JWT_SECRET: ${JWT_SECRET}
       AUTH_SERVICE_URL: http://auth-service:8081
