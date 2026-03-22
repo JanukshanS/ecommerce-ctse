@@ -2,28 +2,27 @@ name: Trigger auto deployment for order-service
 
 # When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
+  # Automatically trigger it when detected changes in repo. 
+  # Your order-service-cicd.yml already builds and pushes the image to Docker Hub.
+  # This workflow simply tells Azure to pull and redeploy that new image.
   push:
     branches: 
       [ main ]
     paths:
-    - '**'
+    - 'order-service/**'
     - '.github/workflows/order-service-AutoDeployTrigger-8ffd27a2-e049-48ab-8e26-c49d98d9b405.yml'
 
   # Allow manual trigger 
   workflow_dispatch:      
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions: 
       id-token: write #This is required for requesting the OIDC JWT Token
       contents: read #Required when GH token is used to authenticate with private repo
 
     steps:
-      - name: Checkout to the branch
-        uses: actions/checkout@v2
-
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -31,19 +30,14 @@ jobs:
           tenant-id: ${{ secrets.ORDERSERVICE_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.ORDERSERVICE_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push container image to registry
+      - name: Deploy pre-built Docker Hub image to Azure Container Apps
         uses: azure/container-apps-deploy-action@v2
         with:
-          appSourcePath: ${{ github.workspace }}/order-service
-          _dockerfilePathKey_: _dockerfilePath_
-          _targetLabelKey_: _targetLabel_
+          containerAppName: order-service
+          resourceGroup: rg-ecommerce-ctse
+          imageToDeploy: docker.io/janukshan/ecommerce-order-service:latest
           registryUrl: docker.io
           registryUsername: ${{ secrets.ORDERSERVICE_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.ORDERSERVICE_REGISTRY_PASSWORD }}
-          containerAppName: order-service
-          resourceGroup: rg-ecommerce-ctse
-          imageToBuild: janukshan/order-service:${{ github.sha }}
-          _buildArgumentsKey_: |
-            _buildArgumentsValues_
 
 
