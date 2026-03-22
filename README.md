@@ -70,6 +70,8 @@ All external traffic flows through the API Gateway, which validates JWT tokens a
    - API Gateway: http://localhost:8080
    - Swagger UI (per service): http://localhost:{port}/swagger-ui.html
 
+5. **Postman:** Import `postman/ecommerce-ms.postman_collection.json` (see `postman/README.md`). Optional: `postman/ecommerce-ms-local.postman_environment.json`.
+
 ## API Endpoints
 
 All endpoints are accessible through the API Gateway at `http://localhost:8080`.
