@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -27,11 +30,41 @@ public class CartController {
 
     private final CartService cartService;
 
+    /**
+     * Returns the cart for a user. Identify the user with:
+     * <ul>
+     *   <li>{@code X-User-Id} header (set by the API Gateway from JWT), and/or</li>
+     *   <li>{@code userId} query parameter (e.g. {@code GET /api/cart?userId=...})</li>
+     * </ul>
+     * If both are present they must match. At least one is required.
+     */
     @GetMapping
     public ResponseEntity<CartResponse> getCart(
-            @RequestHeader("X-User-Id") String userId) {
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestParam(value = "userId", required = false) String userIdQuery) {
+        String userId = resolveUserIdForGet(headerUserId, userIdQuery);
         log.info("Getting cart for user: {}", userId);
         return ResponseEntity.ok(cartService.getCart(userId));
+    }
+
+    /**
+     * Resolves user id from header (gateway) and/or query param. Prevents mismatch when both are sent
+     * (e.g. JWT user A with {@code ?userId=B} is rejected).
+     */
+    private static String resolveUserIdForGet(String headerUserId, String userIdQuery) {
+        boolean hasHeader = StringUtils.hasText(headerUserId);
+        boolean hasQuery = StringUtils.hasText(userIdQuery);
+        if (!hasHeader && !hasQuery) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Provide userId via X-User-Id header and/or userId query parameter");
+        }
+        if (hasHeader && hasQuery && !headerUserId.trim().equals(userIdQuery.trim())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "X-User-Id header and userId query parameter must refer to the same user");
+        }
+        return hasHeader ? headerUserId.trim() : userIdQuery.trim();
     }
 
     @PostMapping("/items")

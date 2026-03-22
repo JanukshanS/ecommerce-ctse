@@ -10,10 +10,26 @@ paths:
   /api/cart:
     get:
       summary: Get user's cart
+      description: >
+        Supply the user via X-User-Id header (from API Gateway) and/or userId query parameter.
+        At least one is required. If both are sent, they must match.
       operationId: getCart
       parameters:
-        - $ref: '#/components/parameters/XUserId'
+        - name: X-User-Id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Authenticated user id (forwarded by API Gateway)
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Same user id as an alternative to the header (must match X-User-Id when both are used)
       responses:
+        '400':
+          description: Missing user identification or header/query mismatch
         '200':
           description: Cart details
           content:

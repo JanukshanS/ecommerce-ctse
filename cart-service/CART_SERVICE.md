@@ -4,11 +4,16 @@ The **cart service** manages per-user shopping carts in the ecommerce microservi
 
 ## REST API (`/api/cart`)
 
-All endpoints require an **`X-User-Id`** header to identify the user’s cart.
+Most endpoints require an **`X-User-Id`** header (from the API Gateway) to identify the user’s cart.
+
+**GET `/api/cart`** — User identification (no separate endpoint needed):
+
+- **`X-User-Id`** header and/or **`userId`** query parameter (e.g. `/api/cart?userId=abc123`).
+- At least one must be present. If both are present, they **must match** (prevents requesting another user’s cart when the gateway sets the header from the JWT).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| **GET** | `/api/cart` | Returns the user’s cart. Creates an empty cart in the database if none exists. |
+| **GET** | `/api/cart` | Returns the user’s cart. Optional query: `?userId=...` (see above). Creates an empty cart if none exists. |
 | **POST** | `/api/cart/items` | Adds a line item, or increases quantity if the product is already in the cart. |
 | **PUT** | `/api/cart/items/{productId}` | Updates quantity for that product. Quantity **0** removes the line. |
 | **DELETE** | `/api/cart/items/{productId}` | Removes that product from the cart. |

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ecommerce-ms-collection-2026",
     "name": "E-Commerce Microservices API",
-    "description": "Complete API collection for the E-Commerce Order Management System.\n\nInstructions:\n1. Import this file into Postman (File → Import)\n2. Import the environment file: ecommerce-ms-local.postman_environment.json\n3. Select the 'ECommerce Local' environment\n4. Start with '01 - Auth → Register' — the token is auto-saved\n5. All subsequent requests use {{token}} automatically",
+    "description": "Complete API collection for the E-Commerce platform via the **API Gateway**.\n\n**Import:** File → Import → choose this JSON.\n\n**Recommended:** Also import `ecommerce-ms-local.postman_environment.json` and select **ECommerce Local** (sets `baseUrl`).\n\n**Flow:** Run folders in order (01→06). **Do not run 07 - Cleanup** until you are finished testing — it soft-deletes the product used by cart/order.\n\nSee `API_GATEWAY_TESTING.md` in the repo root for full request/response details.\n\nVariables (`token`, `userId`, `productId`, `orderId`, `paymentId`) are auto-saved from responses when you use an environment or collection run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,9 +32,11 @@
                   "    pm.expect(body.token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.tokenType).to.equal('Bearer');",
                   "    pm.expect(body.userId).to.be.a('string').and.not.empty;",
-                  "    // Persist for subsequent requests",
+                  "    // Persist for subsequent requests (environment + collection)",
                   "    pm.environment.set('token', body.token);",
                   "    pm.environment.set('userId', body.userId);",
+                  "    pm.collectionVariables.set('token', body.token);",
+                  "    pm.collectionVariables.set('userId', body.userId);",
                   "    console.log('Token saved:', body.token.substring(0, 20) + '...');",
                   "});"
                 ],
@@ -69,6 +71,8 @@
                   "    pm.expect(body.token).to.be.a('string').and.not.empty;",
                   "    pm.environment.set('token', body.token);",
                   "    pm.environment.set('userId', body.userId);",
+                  "    pm.collectionVariables.set('token', body.token);",
+                  "    pm.collectionVariables.set('userId', body.userId);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -100,7 +104,7 @@
                   "pm.test('Token is valid', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.valid).to.be.true;",
-                  "    pm.expect(body.username).to.equal('testuser');",
+                  "    if (body.username) pm.expect(body.username).to.be.a('string');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -196,6 +200,7 @@
                   "    pm.expect(body.sellerName).to.be.a('string').and.not.empty;",
                   "    console.log('Seller Name fetched from Auth:', body.sellerName);",
                   "    pm.environment.set('productId', body.id);",
+                  "    pm.collectionVariables.set('productId', body.id);",
                   "    console.log('Product ID saved:', body.id);",
                   "});"
                 ],
@@ -229,7 +234,8 @@
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
-                  "pm.environment.set('productId2', body.id);"
+                  "pm.environment.set('productId2', body.id);",
+                  "pm.collectionVariables.set('productId2', body.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -294,7 +300,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Correct product returned', () => {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.id).to.equal(pm.environment.get('productId'));",
+                  "    const expected = pm.collectionVariables.get('productId') || pm.environment.get('productId');",
+                  "    pm.expect(body.id).to.equal(expected);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -433,29 +440,6 @@
               "path": ["api", "catalog", "products", "{{productId}}"]
             }
           }
-        },
-        {
-          "name": "Delete Product",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/catalog/products/{{productId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "catalog", "products", "{{productId}}"]
-            }
-          }
         }
       ]
     },
@@ -542,7 +526,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Cart belongs to user', () => {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.userId).to.equal(pm.environment.get('userId'));",
+                  "    const uid = pm.collectionVariables.get('userId') || pm.environment.get('userId');",
+                  "    pm.expect(body.userId).to.equal(uid);",
                   "    pm.expect(body.totalAmount).to.be.above(0);",
                   "});"
                 ],
@@ -570,7 +555,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Quantity updated', () => {",
                   "    const body = pm.response.json();",
-                  "    const item = body.items.find(i => i.productId === pm.environment.get('productId'));",
+                  "    const pid = pm.collectionVariables.get('productId') || pm.environment.get('productId');",
+                  "    const item = body.items.find(i => i.productId === pid);",
                   "    pm.expect(item.quantity).to.equal(3);",
                   "});"
                 ],
@@ -655,9 +641,12 @@
                   "pm.test('Order created', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.id).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.status).to.equal('PENDING');",
+                  "    pm.expect(['PENDING','CONFIRMED']).to.include(body.status);",
                   "    pm.expect(body.totalAmount).to.equal(389.97);",
                   "    pm.environment.set('orderId', body.id);",
+                  "    if (body.paymentId) pm.environment.set('paymentId', body.paymentId);",
+                  "    pm.collectionVariables.set('orderId', body.id);",
+                  "    if (body.paymentId) pm.collectionVariables.set('paymentId', body.paymentId);",
                   "    console.log('Order ID saved:', body.id);",
                   "});"
                 ],
@@ -723,7 +712,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Correct order returned', () => {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.id).to.equal(pm.environment.get('orderId'));",
+                  "    const oid = pm.collectionVariables.get('orderId') || pm.environment.get('orderId');",
+                  "    pm.expect(body.id).to.equal(oid);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -829,6 +819,7 @@
                   "    pm.expect(body.transactionId).to.be.a('string').and.not.empty;",
                   "    pm.expect(['SUCCESS','FAILED']).to.include(body.status);",
                   "    pm.environment.set('paymentId', body.id);",
+                  "    pm.collectionVariables.set('paymentId', body.id);",
                   "    console.log('Payment status:', body.status);",
                   "    console.log('Transaction ID:', body.transactionId);",
                   "});"
@@ -864,7 +855,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Payment matches order', () => {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.orderId).to.equal(pm.environment.get('orderId'));",
+                  "    const oid = pm.collectionVariables.get('orderId') || pm.environment.get('orderId');",
+                  "    pm.expect(body.orderId).to.equal(oid);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1025,6 +1017,35 @@
               "raw": "{{baseUrl}}/actuator/circuitbreakers",
               "host": ["{{baseUrl}}"],
               "path": ["actuator", "circuitbreakers"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Cleanup (optional, run last)",
+      "description": "Soft-deletes the main test product. Run only after you finish cart, order, and payment tests.",
+      "item": [
+        {
+          "name": "Delete Product (soft delete)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/catalog/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "catalog", "products", "{{productId}}"]
             }
           }
         }

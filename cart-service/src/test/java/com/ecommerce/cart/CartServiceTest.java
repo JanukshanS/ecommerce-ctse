@@ -18,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -27,6 +29,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -176,8 +181,7 @@ class CartServiceTest {
 
         cartService.clearCart(userId);
 
-        verify(cartRepository, times(1)).save(any(Cart.class));
-        verify(cartRepository).save(argThat(cart ->
+        verify(cartRepository, times(1)).save(argThat(cart ->
                 cart.getItems().isEmpty() && cart.getTotalAmount() == 0.0));
     }
 
@@ -216,7 +220,128 @@ class CartServiceTest {
         assertEquals(0.0, response.getTotalAmount());
     }
 
-    private <T> T argThat(org.mockito.ArgumentMatcher<T> matcher) {
-        return org.mockito.Mockito.argThat(matcher);
+    @Test
+    @DisplayName("getCart - should return existing cart")
+    void getCart_WhenCartExists_ShouldReturnMappedResponse() {
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(testCart));
+
+        CartResponse response = cartService.getCart(userId);
+
+        assertNotNull(response);
+        assertEquals("cart001", response.getCartId());
+        assertEquals(userId, response.getUserId());
+        assertEquals(1, response.getItemCount());
+        assertThat(response.getTotalAmount()).isEqualTo(59.98);
+        verify(cartRepository, never()).save(any(Cart.class));
+    }
+
+    @Test
+    @DisplayName("getCart - should create and persist empty cart when none exists")
+    void getCart_WhenCartMissing_ShouldCreateEmptyCart() {
+        Cart newCart = Cart.builder()
+                .id("new-id")
+                .userId(userId)
+                .items(new ArrayList<>())
+                .totalAmount(0.0)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(cartRepository.save(any(Cart.class))).thenReturn(newCart);
+
+        CartResponse response = cartService.getCart(userId);
+
+        assertNotNull(response);
+        assertEquals(userId, response.getUserId());
+        assertEquals(0, response.getItemCount());
+        assertThat(response.getTotalAmount()).isEqualTo(0.0);
+        verify(cartRepository, times(1)).save(any(Cart.class));
+    }
+
+    @Test
+    @DisplayName("addItem - should throw when product not found in catalog")
+    void addItem_WhenProductNotFound_ShouldThrow() {
+        AddToCartRequest request = AddToCartRequest.builder()
+                .productId("missing")
+                .productName("X")
+                .price(1.0)
+                .quantity(1)
+                .build();
+
+        // lenient: avoids strict-stub false positives on some runners; behavior is asserted below
+        lenient().when(catalogServiceClient.getProduct("missing")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> cartService.addItem(userId, request));
+        verify(catalogServiceClient).getProduct("missing");
+        verify(cartRepository, never()).save(any(Cart.class));
+    }
+
+    @Test
+    @DisplayName("addItem - should throw when insufficient stock")
+    void addItem_WhenInsufficientStock_ShouldThrow() {
+        AddToCartRequest request = AddToCartRequest.builder()
+                .productId("prod002")
+                .productName("Y")
+                .price(10.0)
+                .quantity(100)
+                .build();
+
+        when(catalogServiceClient.getProduct("prod002")).thenReturn(
+                Optional.of(Map.of("id", "prod002", "name", "Y", "price", 10.0, "stock", 5)));
+        when(catalogServiceClient.checkStock("prod002", 100)).thenReturn(false);
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(testCart));
+
+        assertThrows(RuntimeException.class, () -> cartService.addItem(userId, request));
+        verify(cartRepository, never()).save(any(Cart.class));
+    }
+
+    @Test
+    @DisplayName("removeProductFromAllCarts - should strip product from every cart and save")
+    void removeProductFromAllCarts_ShouldUpdateEachCart() {
+        CartItem other = CartItem.builder()
+                .productId("keep")
+                .productName("Keep")
+                .price(5.0)
+                .quantity(1)
+                .build();
+
+        Cart cart1 = Cart.builder()
+                .id("c1")
+                .userId("u1")
+                .items(new ArrayList<>(Arrays.asList(testCartItem, other)))
+                .totalAmount(64.98)
+                .build();
+
+        List<Cart> carts = new ArrayList<>(Collections.singletonList(cart1));
+        when(cartRepository.findByItemsProductId("prod001")).thenReturn(carts);
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        cartService.removeProductFromAllCarts("prod001");
+
+        assertThat(cart1.getItems()).hasSize(1);
+        assertEquals("keep", cart1.getItems().get(0).getProductId());
+        verify(cartRepository, times(1)).save(eq(cart1));
+    }
+
+    @Test
+    @DisplayName("removeProductFromAllCarts - no carts with product does nothing")
+    void removeProductFromAllCarts_WhenNoCarts_ShouldNotSave() {
+        when(cartRepository.findByItemsProductId("ghost")).thenReturn(Collections.emptyList());
+
+        cartService.removeProductFromAllCarts("ghost");
+
+        verify(cartRepository, never()).save(any(Cart.class));
+    }
+
+    @Test
+    @DisplayName("countCartsWithProduct - delegates to repository")
+    void countCartsWithProduct_ShouldReturnRepositoryCount() {
+        when(cartRepository.countByItemsProductId("hot")).thenReturn(42L);
+
+        long count = cartService.countCartsWithProduct("hot");
+
+        assertEquals(42L, count);
+        verify(cartRepository).countByItemsProductId("hot");
     }
 }
