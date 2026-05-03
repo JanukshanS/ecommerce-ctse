@@ -104,6 +104,7 @@ public class CartController {
      * Internal endpoint — called by catalog-service when a product is deleted.
      * Removes the product from ALL users' carts across the platform.
      * No X-User-Id header required (operates across all users).
+     * testaa
      */
     @DeleteMapping("/items/product/{productId}")
     public ResponseEntity<Void> removeProductFromAllCarts(@PathVariable String productId) {
