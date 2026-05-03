@@ -82,6 +82,7 @@ public class ProductController {
 
     // -----------------------------------------------------------------------
     // GET /api/catalog/products
+    // Test Workflow VIVA
     // -----------------------------------------------------------------------
 
     @Operation(
