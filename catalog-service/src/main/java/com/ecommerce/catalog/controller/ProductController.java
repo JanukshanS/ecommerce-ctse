@@ -55,6 +55,7 @@ public class ProductController {
 
     // -----------------------------------------------------------------------
     // POST /api/catalog/products
+    // Test to check workflows
     // -----------------------------------------------------------------------
 
     @Operation(
